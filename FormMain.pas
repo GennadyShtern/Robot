@@ -45,11 +45,9 @@ type
     tiSettings: TTabItem;
     plTabloidsTop: TPanel;
     plTabloidsClient: TPanel;
-    sbNext: TSpeedButton;
     ActionList: TActionList;
     ChangeTabAction: TChangeTabAction;
     plSettingsTop: TPanel;
-    sbPrior: TSpeedButton;
     lbxSettings: TListBox;
     plSettingsClient: TPanel;
     LoadingImage: TImage;
@@ -64,8 +62,11 @@ type
     ListBoxItem1: TListBoxItem;
     cbTimes: TComboBox;
     Label1: TLabel;
-    Label2: TLabel;
     Timer: TTimer;
+    imSelection: TImage;
+    Label2: TLabel;
+    sbNext: TSpeedButton;
+    sbPrior: TSpeedButton;
     procedure btnStartClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure t2sb1Click(Sender: TObject);
@@ -78,6 +79,7 @@ type
     procedure TimerTimer(Sender: TObject);
   private
     { Private declarations }
+    FButtons: TArray<TSpeedButton>;
     FPath: TArray<string>;
     FPathIndex: integer;
     FManager: TBluetoothManager;
@@ -153,6 +155,9 @@ begin
     Popup.Position.X := -100;
     Popup.Position.Y := -100;
     Popup.IsOpen := False;
+    imSelection.Visible := False;
+    FButtons := [];
+    FPathIndex := -1;
 
     Readsettings;
     RequestBluetoothPermissions;
@@ -183,7 +188,10 @@ begin
     if ATablo.Children.Items[I] is TSpeedButton then
     begin
       if (ATablo.Children.Items[I] as TSpeedButton).Tag > 0 then
+      begin
         APath := APath + [cnstDir[(ATablo.Children.Items[I] as TSpeedButton).Tag]];
+        FButtons := FButtons + [(ATablo.Children.Items[I] as TSpeedButton)];
+      end;
     end;
   end;
 end;
@@ -241,7 +249,7 @@ var
   LPoint: TPointF;
   I: integer;
 begin
-  if Sender is TSpeedButton then
+  if (FPathIndex < 0) and (Sender is TSpeedButton) then
   begin
     sb := Sender as TSpeedButton;
     LPoint := sb.LocalToScreen(sb.ClipRect.CenterPoint);
@@ -265,27 +273,37 @@ begin
   begin
     FPathIndex := 0;
     Timer.Interval := (2 + cbTimes.ItemIndex)*MSecsPerSec;
+
+    TimerTimer(nil);
     Timer.Enabled := True;
 
     btnStart.Enabled := False;
-    imTablo1.Enabled := False;
-    imTablo2.Enabled := False;
+    //imTablo1.Enabled := False;
+    //imTablo2.Enabled := False;
   end;
 end;
 
 procedure TfmMain.TimerTimer(Sender: TObject);
 begin
-  if (FPathIndex >= 0) and (FPathIndex <= length(FPath)) then
+  if (FPathIndex >= 0) and (FPathIndex < length(FPath)) then
   begin
-    Inc(FPathIndex);
+    imSelection.Visible := False;
+    imSelection.Parent := FButtons[FPathIndex].Parent;
+    imSelection.Position := FButtons[FPathIndex].Position;
+    imSelection.Position.X := imSelection.Position.X - 2;
+    imSelection.Position.Y := imSelection.Position.Y - 2;
+
+    imSelection.Visible := True;
     //Посылка данных в BlueTooth
     SendBluetoothData(FDevice, FPath[FPathIndex]);
+    Inc(FPathIndex);
   end
   else
   begin
     FPathIndex := -1;
     Timer.Enabled := False;
     ActiveAnimation(False);
+    imSelection.Visible := False;
 
     btnStart.Enabled := True;
     imTablo1.Enabled := True;
@@ -351,6 +369,7 @@ end;
 procedure TfmMain.RobotGo;
 begin
   FPath := [];
+  FButtons := [];
   FPathIndex := -1;
   GetPath(imTablo1, FPath);
   if FTabloCount > 1 then
